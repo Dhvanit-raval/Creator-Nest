@@ -11,7 +11,9 @@ export default function Profile() {
     const [name, setName] = useState('')
     const [bio, setBio] = useState('')
     const [twitter, setTwitter] = useState('')
+    const [profileImageUrl, setProfileImageUrl] = useState('')
     const [loading, setLoading] = useState(false)
+    const [uploading, setUploading] = useState(false)
     const [saved, setSaved] = useState(false)
 
     useEffect(() => {
@@ -32,6 +34,31 @@ export default function Profile() {
             setSaved(true)
             setTimeout(() => setSaved(false), 3000)
         }, 1000)
+    }
+
+    const handleProfileImageUpload = async (e) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setUploading(true)
+        const formData = new FormData()
+        formData.append('file', file)
+
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+            })
+            const data = await response.json()
+
+            if (response.ok && data.url) {
+                setProfileImageUrl(data.url)
+            }
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setUploading(false)
+        }
     }
 
     if (status === 'loading' || status === 'unauthenticated') {
@@ -60,15 +87,15 @@ export default function Profile() {
                             <div className="flex items-center gap-6">
                                 <div className="w-24 h-24 bg-zinc-900 border border-zinc-800 shrink-0 overflow-hidden rounded-sm">
                                     <img 
-                                        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Creator')}&size=160&background=ffffff&color=000000&rounded=false`} 
+                                        src={profileImageUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Creator')}&size=160&background=ffffff&color=000000&rounded=false`} 
                                         alt="Profile preview" 
                                         className="w-full h-full object-cover p-1"
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="cursor-pointer bg-zinc-900 border border-zinc-700 hover:border-zinc-500 text-zinc-100 px-6 py-3 text-sm font-bold tracking-widest uppercase transition-colors inline-block">
-                                        Upload New
-                                        <input type="file" className="hidden" accept="image/*" />
+                                        {uploading ? 'Uploading...' : 'Upload New'}
+                                        <input type="file" className="hidden" accept="image/*" onChange={handleProfileImageUpload} />
                                     </label>
                                     <p className="text-xs text-zinc-500 font-medium">JPG, PNG or GIF. Max size 2MB.</p>
                                 </div>
