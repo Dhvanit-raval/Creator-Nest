@@ -1,10 +1,10 @@
 'use client'
-import React, { useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import { signIn, useSession } from "next-auth/react"
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-const Login = () => {
+const LoginForm = () => {
     const { data: session } = useSession()
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -12,18 +12,16 @@ const Login = () => {
     const [password, setPassword] = useState("")
     const [status, setStatus] = useState("")
     const [loading, setLoading] = useState(false)
+    const signupMessage = searchParams?.get('signup') === 'success'
+        ? 'Account created! Please log in with your new credentials.'
+        : ''
+    const visibleStatus = status || signupMessage
 
     useEffect(() => {
         if (session) {
             router.push('/dashboard')
         }
     }, [session, router])
-
-    useEffect(() => {
-        if (searchParams?.get('signup') === 'success') {
-            setStatus('Account created! Please log in with your new credentials.')
-        }
-    }, [searchParams])
 
     if (session) {
         return null
@@ -34,21 +32,25 @@ const Login = () => {
         setStatus("")
         setLoading(true)
 
-        const result = await signIn('credentials', {
-            redirect: false,
-            email,
-            password,
-            callbackUrl: '/dashboard',
-        })
+        try {
+            const result = await signIn('credentials', {
+                redirect: false,
+                email: email.trim().toLowerCase(),
+                password,
+                callbackUrl: '/dashboard',
+            })
 
-        setLoading(false)
+            if (result?.error) {
+                setStatus('Invalid email or password.')
+                return
+            }
 
-        if (result?.error) {
-            setStatus('Invalid email or password.')
-            return
+            router.push('/dashboard')
+        } catch {
+            setStatus('Unable to log in right now. Please try again.')
+        } finally {
+            setLoading(false)
         }
-
-        router.push('/dashboard')
     }
 
     return (
@@ -98,6 +100,8 @@ const Login = () => {
                                 type="email"
                                 className="w-full border-b-2 border-zinc-800 bg-transparent px-0 py-3 text-white placeholder-zinc-600 focus:border-white focus:outline-none transition-colors rounded-none"
                                 placeholder="you@example.com"
+                                autoComplete="email"
+                                required
                             />
                         </div>
                         <div>
@@ -108,6 +112,8 @@ const Login = () => {
                                 type="password"
                                 className="w-full border-b-2 border-zinc-800 bg-transparent px-0 py-3 text-white placeholder-zinc-600 focus:border-white focus:outline-none transition-colors rounded-none"
                                 placeholder="Your password"
+                                autoComplete="current-password"
+                                required
                             />
                         </div>
                         <button
@@ -115,17 +121,19 @@ const Login = () => {
                             disabled={loading}
                             className="w-full rounded-sm bg-white px-4 py-4 text-black font-semibold text-sm transition-colors hover:bg-gray-200 disabled:opacity-50 mt-4 cursor-pointer"
                         >
-                            {loading ? 'Logging in…' : 'Log in'}
+                            {loading ? 'Logging in...' : 'Log in'}
                         </button>
                     </form>
 
-                    {status ? (
-                        <p className="text-center text-sm font-medium text-red-500 mt-4">{status}</p>
+                    {visibleStatus ? (
+                        <p className={`text-center text-sm font-medium mt-4 ${status ? 'text-red-500' : 'text-emerald-400'}`}>
+                            {visibleStatus}
+                        </p>
                     ) : null}
                 </div>
 
                 <p className="text-center mt-10 text-sm text-gray-400 font-medium">
-                    Don't have an account?{' '}
+                    Don&apos;t have an account?{' '}
                     <Link href="/signup" className="text-white hover:underline font-bold cursor-pointer">
                         Sign up.
                     </Link>
@@ -134,5 +142,11 @@ const Login = () => {
         </div>
     )
 }
+
+const Login = () => (
+    <Suspense fallback={null}>
+        <LoginForm />
+    </Suspense>
+)
 
 export default Login
